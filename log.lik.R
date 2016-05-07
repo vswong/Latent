@@ -41,7 +41,7 @@ log.lik <- function(data, params, event) {
     indx <- which(event==unique(event)[k])
     alpha.local[indx,] <-  matrix(alpha[(p * (k - 1) + 1):(p * k)], length(indx), p, byrow=TRUE)
     
-    sumLogLikNormal <- sumLogLikNormal - lambda[k] * sum(gamma1[indx] * gamma2[indx])
+    sumLogLikNormal <- sumLogLikNormal - lambda[k] * abs(sum(gamma1[indx] * gamma2[indx]))
   }
   
   sumLogLikNormal = sumLogLikNormal - n * log(sigma1*sigma2)/2 - sum(gamma1^2)/2/sigma1 - sum(gamma2^2)/2/sigma2

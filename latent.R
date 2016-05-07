@@ -85,7 +85,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
 #          1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
 #          1,1,1,1,1)
   cens <- sapply(1:p, function(k) ifelse(data[,k]<=min.detect[k], min.detect[k], data[,k]))
-  xx = c(rep(as.integer(!specific), d), log(colMeans(cens)), as.integer(!specific), rep(1, n), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), 1, 1, rep(15, d))
+  xx = c(rep(as.integer(!specific), d), log(colMeans(cens)), as.integer(!specific), rep(1, n), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), 1, 1, rep(100000, d))
   finished = FALSE
   
   f.old = -Inf
@@ -169,13 +169,12 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
       }
       
       xx = newxx
-
       
       f.proposed = log.lik(data, xx, event)
       
       
       if (i%%10 == 0) {
-        cat(paste(i, " iterations of CG, step size ", t, "likelihood at ",f.proposed ,"\n"))
+        cat(paste(i, " iterations of CG, step size ", t, "likelihood at ", f.proposed , "\n"))
         if (i%%1000 == 0) {
           print.table(xx)
           if (i%%10000 == 0) {
@@ -195,24 +194,22 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
     }
     
     converged.irls = FALSE
-    gamma.old <- xx[(2+d)*p + 1:(2*n)]
+    alphabeta.old <- xx[1:(p*d+2*p)]
     f.old = log.lik(data, xx, event)
     i = 0
     while (!converged.irls) {
       i <- i+1
       #Do IRLS here
-      gamma.new = irls(data, xx, event)
+      alphabeta.new = irls(data, xx, event)
       
-      xx[(2+d)*p + 1:(2*n)] <- gamma.new
+      xx[1:(p*d+2*p)] <- alphabeta.new
       
-      if (i%%10 == 0) {
-        cat(paste(i, " iterations of IRLS, likelihood = ", log.lik(data, xx, event), "\n"))
-      }
+      cat(paste(i, " iterations of IRLS, likelihood = ", log.lik(data, xx, event), "\n"))
       
-      if (sum((gamma.old - gamma.new)^2 / sum(gamma.old^2)) < tol)
+      if (sum((alphabeta.old - alphabeta.new)^2 / sum(alphabeta.old^2)) < tol)
         converged.irls <- TRUE
       else{
-        gamma.old <- gamma.new
+        alphabeta.old <- alphabeta.new
       }
     }
     

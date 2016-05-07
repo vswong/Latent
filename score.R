@@ -53,12 +53,24 @@ score <- function(data, params, event, specific=NULL) {
   # sort out lambdas here too
   alpha.local <- matrix(0, n, p)
   lambda.local <- vector()
+  gamma1.partial <- gamma1
+  gamma2.partial <- gamma2
   for (k in 1:d) {
     indx <- which(event==unique(event)[k])
     alpha.local[indx,] <- matrix(alpha[(p * (k - 1) + 1):(p * k)], length(indx), p, byrow=TRUE)
     
     #Derivative w.r.t. lambda(lagrange multiplier) is simply the dot product of the gammas in the event
-    lambda.local <- c(lambda.local, -sum(gamma1[indx]*gamma2[indx]))
+    lambda.local <- c(lambda.local, -abs(sum(gamma1[indx]*gamma2[indx])))
+    
+    #The gammas will have lagrangian multipliers for their derivatives, do them here
+    if(sum(gamma1[indx]*gamma2[indx]) > 0){
+      gamma1.partial[indx] = lambda[k]*(gamma2[indx])
+      gamma2.partial[indx] = lambda[k]*(gamma1[indx])
+    }
+    else{
+      gamma1.partial[indx] = -lambda[k]*(gamma2[indx])
+      gamma2.partial[indx] = -lambda[k]*(gamma1[indx])
+    }
   }
   
   # compute this once to save time:
@@ -66,20 +78,22 @@ score <- function(data, params, event, specific=NULL) {
   
   # gradient in the direction of event-specific alphas:
   grad <- vector()
-  for (k in 1:d) {
-    indx <- which(event==unique(event)[k])
-    grad <- c(grad, as.integer(!specific) * colSums(data[indx,] - eta[indx,], na.rm=TRUE))
-  }
+#   for (k in 1:d) {
+#     indx <- which(event==unique(event)[k])
+#     grad <- c(grad, as.integer(!specific) * colSums(data[indx,] - eta[indx,], na.rm=TRUE))
+#   }
+  grad <- c(grad, rep(0, d*p))
   
   # gradient in the direction of beta:
-  grad <- c(grad, colSums(sweep(data - eta, 1, gamma1, '*'), na.rm=TRUE))
-  grad <- c(grad, colSums(sweep(data - eta, 1, gamma2, '*'), na.rm=TRUE)[1:3])
-  grad <- c(grad, rep(0, 2))
+#   grad <- c(grad, colSums(sweep(data - eta, 1, gamma1, '*'), na.rm=TRUE))
+#   grad <- c(grad, colSums(sweep(data - eta, 1, gamma2, '*'), na.rm=TRUE)[1:3])
+#   grad <- c(grad, rep(0, 2))
+  grad <- c(grad, rep(0, p))
+  grad <- c(grad, rep(0, p))
   
   # gradient in the direction of gamma:
-  # treat these as zero, optimize them for IRLS
-  grad <- c(grad, rep(0, n))
-  grad <- c(grad, rep(0, n))
+  grad <- c(grad, rowSums(sweep(data - eta, 2, beta1, '*'), na.rm=TRUE)-gamma1.partial)
+  grad <- c(grad, rowSums(sweep(data - eta, 2, beta2, '*'), na.rm=TRUE)-gamma2.partial)
   
   # Victor, gradient in the direction of sigmas:
   grad <- c(grad, -n/2/sigma1 + sum(gamma1^2)/2/sigma1^2)

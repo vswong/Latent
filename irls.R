@@ -25,39 +25,47 @@ irls <- function(data, params, event) {
   #Make structure for alpha:
   alpha.local = matrix(0, n, p)
   
-  #Make the lagrange multipliers here
-  lambda.local = vector()
+  #Make the design matrix here
+  designMat.partial1 = matrix(0, n*p, p*d)
+  designMat.partial2 = matrix(0, n*p, 2*p)
   for (k in 1:d) {
     indx <- which(event==unique(event)[k])
     alpha.local[indx,] = matrix(alpha[(p*(k-1)+1):(p*k)], length(indx), p, byrow=TRUE)
-    lambda.local <- c(lambda.local, lambda[k]*gamma2[indx])
+    for (j in 1:p){
+      designMat.partial1[indx+(j-1)*n,1+(j-1)+(k-1)*p] = 1
+    }
   }
   
-  #Add zeros to fit column width for the design matrix
-  lambda.local = c(lambda.local, rep(0, n))
+#   designMat.partial2 = rbind(cbind(gamma1, matrix(0, n, 4), gamma2, matrix(0, n, 4)), 
+#                              cbind(matrix(0,n,1), gamma1, matrix(0, n, 4), gamma2, matrix(0, n, 3)),
+#                              cbind(matrix(0,n,2), gamma1, matrix(0, n, 4), gamma2, matrix(0, n, 2)),
+#                              cbind(matrix(0,n,3), gamma1, matrix(0, n, 4), gamma2, matrix(0, n, 1)),
+#                              cbind(matrix(0,n,4), gamma1, matrix(0, n, 4), gamma2))
+  
+  designMat.partial2 = rbind(cbind(gamma1, matrix(0, n, 4), gamma2, matrix(0, n, 4)), 
+                             cbind(matrix(0,n,1), gamma1, matrix(0, n, 4), gamma2, matrix(0, n, 3)),
+                             cbind(matrix(0,n,2), gamma1, matrix(0, n, 4), gamma2, matrix(0, n, 2)),
+                             cbind(matrix(0,n,3), gamma1, matrix(0, n, 6)),
+                             cbind(matrix(0,n,4), gamma1, matrix(0, n, 5)))
+  
+  designMat = cbind(designMat.partial1, designMat.partial2)
+  
   
   #Make eta into vector, should be 1x(5*38) = 1x190
   eta = as.vector(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local)
   mu.local = exp(eta)
-  wt = c(mu.local, rep(1, n), rep(1, n), 1)
+  wt = mu.local
   
   #Deduct alpha.local here as the design matrix will not include it
-  z = eta - as.vector(alpha.local) + (as.vector(as.matrix(data)) - mu.local) / mu.local
+  z = eta + (as.vector(as.matrix(data)) - mu.local) / mu.local
   
   #Create response vector, consisting of vector z, 2 vectors of n length for the gaussian priors, and 1 entry for the lagrange multiplier
-  response = c(z, rep(0, n), rep(0, n), 0)
+  response = z
   
-  
-  #Make design matrix
-  #Block matrices of [(beta1, beta2),(sigma1, 0),(0, sigma2)]
-  designMat = rbind(cbind(diag(n) * beta1[1], diag(n) * beta2[1]), cbind(diag(n) * beta1[2], diag(n) * beta2[2]),
-                    cbind(diag(n) * beta1[3], diag(n) * beta2[3]), cbind(diag(n) * beta1[4], diag(n) * beta2[4]),
-                    cbind(diag(n) * beta1[5], diag(n) * beta2[5]), cbind(diag(n)/sqrt(2 * sigma1[1]), matrix(0, n, n)),
-                    cbind(matrix(0, n, n), diag(n)/sqrt(2 * sigma2[1])), lambda.local)
   
   pois = lsfit(x=designMat, y=response, intercept=FALSE, wt=wt)
   
-  gamma.new = pois$coefficients
+  alphabeta.new = pois$coefficients
   
-  gamma.new
+  alphabeta.new
 }
