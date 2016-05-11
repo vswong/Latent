@@ -44,7 +44,7 @@ log.lik <- function(data, params, event) {
     sumLogLikNormal <- sumLogLikNormal - lambda[k] * abs(sum(gamma1[indx] * gamma2[indx]))
   }
   
-  sumLogLikNormal = sumLogLikNormal - n * log(sigma1*sigma2)/2 - sum(gamma1^2)/2/sigma1 - sum(gamma2^2)/2/sigma2
+  sumLogLikNormal = sumLogLikNormal - n * log(2 * pi * sigma1*sigma2)/2 - sum(gamma1^2)/2/sigma1 - sum(gamma2^2)/2/sigma2
   
   # anonymous function to compute log likelihood:
   (function (x) sum(data*x - exp(x), na.rm=TRUE))(gamma1 %*% t(beta1) + gamma2 %*% t(beta2) + alpha.local) + sumLogLikNormal
