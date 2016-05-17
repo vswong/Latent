@@ -78,14 +78,14 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   #2 gamma value per row/reading
   #2 sigma values, 1 for each gamma
   #1 lambda per event for orthogonality constraint
-    #   xx = c(5.137,-2.658,1.265,0,0,4.648,-2.069,2.701,0,0,
-    #          4.507,-1.891,2.414,0,0,1.193,3.849,2.670,5.019,4.763,
-    #          2.413,3.837,3.054,0,0,
-    #          2.056,2.104,2.127,2.033,2.193,2.255,2.200,2.066,1.533,0.952,1.795,1.278,1.909,1.669,1.381,1.166,1.176,1.375,1.426,1.294,1.185,0.596,1.045,1.129,1.232,1.195,1.226,0.939,0.788,1.267,0.519,0.558,1.027,1.073,1.979,2.355,2.012,2.065,
-    #          1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
-    #          1,1,1,1,1)
+  #   xx = c(5.137,-2.658,1.265,0,0,4.648,-2.069,2.701,0,0,
+  #          4.507,-1.891,2.414,0,0,1.193,3.849,2.670,5.019,4.763,
+  #          2.413,3.837,3.054,0,0,
+  #          2.056,2.104,2.127,2.033,2.193,2.255,2.200,2.066,1.533,0.952,1.795,1.278,1.909,1.669,1.381,1.166,1.176,1.375,1.426,1.294,1.185,0.596,1.045,1.129,1.232,1.195,1.226,0.939,0.788,1.267,0.519,0.558,1.027,1.073,1.979,2.355,2.012,2.065,
+  #          1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
+  #          1,1,1,1,1)
   cens <- sapply(1:p, function(k) ifelse(data[,k]<=min.detect[k], min.detect[k], data[,k]))
-  xx = c(rep(as.integer(!specific), d), log(colMeans(cens)), as.integer(!specific), rep(1, n), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), 1, 1, rep(100000, d))
+  xx = c(rep(as.integer(!specific), d), rep(1, p), as.integer(!specific), rnorm(n, 0, 1), rnorm(n, 0, 1), 1, 1, rep(10, d))
   finished = FALSE
   
   f.old = -Inf
@@ -98,129 +98,135 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   tol = 1e-5
   check=Inf
   
-  
   while (!finished) {
     converged.mstep = FALSE
     while(!converged.mstep){
+      
       f.mold = log.lik(data, xx, event)
-        #These iterations restart conjugacy:
-        converged.cg = FALSE
-        i = 0
-        
-        f.old = log.lik(data, xx, event)
-        while (!converged.cg) {
-          i = i+1
+      #These iterations restart conjugacy:
+      converged.cg = FALSE
+      i = 0
+      
+      f.old = log.lik(data, xx, event)
+      while (!converged.cg) {
+        i = i+1
+        if(i == 1)
           t = 1
-          
-          dir.new = score(data, xx, event, specific = specific)
-          
-          dir.new = dir.new/sqrt(sum(dir.new^2))
-          
-          #Use conjugate gradient here
-          if (i > 1) {
-            cdir.old = cdir.old*max(0, sum(dir.new*(dir.new-dir.old))/(sum(dir.old^2)))
-            dir.old = dir.new
-            dir.new = dir.new + cdir.old
-          } else {
-            dir.old = dir.new
-          }
-          
-          newxx = xx + dir.new * t
-          
-          foundStep = FALSE
-          f.proposed = log.lik(data, newxx, event)
-          
-          #First make sure that we are at least improving
-          while(!foundStep && !converged.cg){
-            if(f.proposed > f.old)
-              foundStep = TRUE
-            else {
-              t <- t*0.9
-              if(t <= .Machine$double.eps){
-                #Step size too small, just take original parameters
-                converged.cg = TRUE
-                newxx = xx
-                cat("Step size too small, converged") 
-              } else {
-                newxx <- xx + dir.new * t
-                f.proposed = log.lik(data, newxx, event)
-              }
-            }
-          }
-          #Now we try to find the optimal step
-          foundStep = FALSE
-          f.best = f.proposed
-          while(!foundStep && !converged.cg){
-            
-            t <- t * 0.9
+        else
+          t = t*10
+        
+        dir.new = score(data, xx, event, specific = specific)
+        
+        dir.new = dir.new/sqrt(sum(dir.new^2))
+        
+        #Use conjugate gradient here
+        if (i > 1) {
+          cdir.old = cdir.old*max(0, sum(dir.new*(dir.new-dir.old))/(sum(dir.old^2)))
+          dir.old = dir.new
+          dir.new = dir.new + cdir.old
+        } else {
+          dir.old = dir.new
+        }
+        
+        newxx = xx + dir.new * t
+        
+        foundStep = FALSE
+        f.proposed = log.lik(data, newxx, event)
+        
+        #First make sure that we are at least improving
+        while(!foundStep && !converged.cg){
+          if(f.proposed > f.old)
+            foundStep = TRUE
+          else {
+            t <- t*0.99
             if(t <= .Machine$double.eps){
+              #Step size too small, just take original parameters
               converged.cg = TRUE
-              cat("Step size too small, converged") 
-            }
-            newxx <- xx + dir.new * t
-            
-            f.proposed <- log.lik(data, newxx, event)
-            
-            if(f.proposed > f.best){
-              f.best = f.proposed
-            }
-            else{
-              t <- t/0.9
-              newxx <- xx + dir.new * t
-              foundStep <- TRUE
-            }
-          }
-          
-          xx = newxx
-          
-          f.proposed = log.lik(data, xx, event)
-          
-          
-          if (i%%10 == 0) {
-            cat(paste(i, " iterations of CG, step size ", t, "likelihood at ", f.proposed , "\n"))
-            if (i%%1000 == 0) {
+              newxx = xx
+              cat(paste("Step size too small, converged, t = ", t, "\n")) 
+              cat(paste("Old likelihood: ", f.old, "new likelihood: ", f.proposed, "\n"))
               print.table(xx)
-              if (i%%10000 == 0) {
-                cat("Taken the maximum amount of steps, treat as converged")
-                converged.cg = TRUE
-              }
+              print.table(newxx)
+            } else {
+              newxx <- xx + dir.new * t
+              f.proposed = log.lik(data, newxx, event)
             }
           }
+        }
+        #Now we try to find the optimal step
+        foundStep = FALSE
+        f.best = f.proposed
+        while(!foundStep && !converged.cg){
           
-          if ((f.proposed - f.old) < f.old * tol){ 
+          t <- t * 0.99
+          if(t <= .Machine$double.eps){
             converged.cg = TRUE
-            cat(paste("Converged, new step: ", f.proposed, " old step = ", f.old, "\n"))
+            cat(paste("Step size too small, converged, t = ", t, "\n")) 
           }
+          newxx <- xx + dir.new * t
           
-          f.old = f.proposed
-          cdir.old = dir.new
-        }
-        
-        converged.irls = FALSE
-        alphabeta.old <- xx[1:(p*d+2*p)]
-        f.old = log.lik(data, xx, event)
-        i = 0
-        while (!converged.irls) {
-          i <- i+1
-          #Do IRLS here
-          alphabeta.new = irls(data, xx, event)
+          f.proposed <- log.lik(data, newxx, event)
           
-          xx[1:(p*d+2*p)] <- alphabeta.new
-          
-          cat(paste(i, " iterations of IRLS, likelihood = ", log.lik(data, xx, event), "\n"))
-          
-          if (sum((alphabeta.old - alphabeta.new)^2 / sum(alphabeta.old^2)) < tol)
-            converged.irls <- TRUE
+          if(f.proposed > f.best){
+            f.best = f.proposed
+          }
           else{
-            alphabeta.old <- alphabeta.new
+            t <- t/0.99
+            newxx <- xx + dir.new * t
+            foundStep <- TRUE
           }
         }
         
-        f.mnew = log.lik(data, xx, event)
-        if(f.mnew - f.mold < tol){
-          cat("M-step converged\n")
-          converged.mstep = TRUE
+        xx = newxx
+        
+        f.proposed = log.lik(data, xx, event)
+        
+        
+        if (i%%10 == 0) {
+          cat(paste(i, " iterations of CG, step size ", t, "likelihood at ", f.proposed , "\n"))
+          if (i%%100 == 0) {
+            print.table(xx)
+            if (i%%10000 == 0) {
+              cat("Taken the maximum amount of steps, treat as converged")
+              converged.cg = TRUE
+            }
+          }
         }
+        
+        if ((f.proposed - f.old) <  tol){ 
+          converged.cg = TRUE
+          cat(paste("Converged, new step: ", f.proposed, " old step = ", f.old, "\n"))
+        }
+        
+        f.old = f.proposed
+        cdir.old = dir.new
+      }
+      
+      converged.irls = FALSE
+      alphabeta.old <- xx[1:(p*d+2*p)]
+      f.old = log.lik(data, xx, event)
+      i = 0
+      while (!converged.irls) {
+        i <- i+1
+        #Do IRLS here
+        alphabeta.new = irls(data, xx, event, specific)
+        
+        xx[1:(p*d+2*p)] <- alphabeta.new
+        
+        cat(paste(i, " iterations of IRLS, likelihood = ", log.lik(data, xx, event), "\n"))
+        
+        if (sum((alphabeta.old - alphabeta.new)^2 / sum(alphabeta.old^2)) < tol)
+          converged.irls <- TRUE
+        else{
+          alphabeta.old <- alphabeta.new
+        }
+      }
+      
+      f.mnew = log.lik(data, xx, event)
+      if(f.mnew - f.mold <  tol){
+        cat("M-step converged\n")
+        converged.mstep = TRUE
+      }
     }
     #2 betas per col
     #2 gammas per row
