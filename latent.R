@@ -85,7 +85,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   #          1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
   #          1,1,1,1,1)
   cens <- sapply(1:p, function(k) ifelse(data[,k]<=min.detect[k], min.detect[k], data[,k]))
-  xx = c(rep(as.integer(!specific), d), rep(1, p), as.integer(!specific), rnorm(n, 0, 1), rnorm(n, 0, 1), 1, 1, rep(10, d))
+  xx = c(rep(as.integer(!specific), d), rep(1, p), as.integer(!specific), rnorm(n, 0, 1), rnorm(n, 0, 1), 1, 1, rep(100, d))
   finished = FALSE
   
   f.old = -Inf
@@ -138,7 +138,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
           if(f.proposed > f.old)
             foundStep = TRUE
           else {
-            t <- t*0.99
+            t <- t*0.9
             if(t <= .Machine$double.eps){
               #Step size too small, just take original parameters
               converged.cg = TRUE
@@ -146,7 +146,6 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
               cat(paste("Step size too small, converged, t = ", t, "\n")) 
               cat(paste("Old likelihood: ", f.old, "new likelihood: ", f.proposed, "\n"))
               print.table(xx)
-              print.table(newxx)
             } else {
               newxx <- xx + dir.new * t
               f.proposed = log.lik(data, newxx, event)
@@ -158,7 +157,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
         f.best = f.proposed
         while(!foundStep && !converged.cg){
           
-          t <- t * 0.99
+          t <- t * 0.9
           if(t <= .Machine$double.eps){
             converged.cg = TRUE
             cat(paste("Step size too small, converged, t = ", t, "\n")) 
@@ -171,7 +170,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
             f.best = f.proposed
           }
           else{
-            t <- t/0.99
+            t <- t/0.9
             newxx <- xx + dir.new * t
             foundStep <- TRUE
           }
@@ -184,7 +183,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
         
         if (i%%10 == 0) {
           cat(paste(i, " iterations of CG, step size ", t, "likelihood at ", f.proposed , "\n"))
-          if (i%%100 == 0) {
+          if (i%%1000 == 0) {
             print.table(xx)
             if (i%%10000 == 0) {
               cat("Taken the maximum amount of steps, treat as converged")
@@ -193,7 +192,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
           }
         }
         
-        if ((f.proposed - f.old) <  tol){ 
+        if ((f.proposed - f.old) < tol){ 
           converged.cg = TRUE
           cat(paste("Converged, new step: ", f.proposed, " old step = ", f.old, "\n"))
         }

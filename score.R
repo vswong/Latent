@@ -60,10 +60,14 @@ score <- function(data, params, event, specific=NULL) {
     alpha.local[indx,] <- matrix(alpha[(p * (k - 1) + 1):(p * k)], length(indx), p, byrow=TRUE)
     
     #Derivative w.r.t. lambda(lagrange multiplier) is simply the dot product of the gammas in the event
-    lambda.local <- c(lambda.local, sum(gamma1[indx]*gamma2[indx]))
+    lambda.local <- c(lambda.local, sum(gamma1[indx]*gamma2[indx])^2)
     
-    gamma1.partial[indx] = lambda[k]*(gamma2[indx])
-    gamma2.partial[indx] = lambda[k]*(gamma1[indx])
+    gamma1.partial[indx] = -lambda[k]*gamma2[indx]
+    gamma2.partial[indx] = -lambda[k]*gamma1[indx]
+    if(sum(gamma1[indx]*gamma2[indx]) < 0){
+      gamma1.partial[indx] = -gamma1.partial[indx]
+      gamma2.partial[indx] = -gamma2.partial[indx]
+    }
   }
   
   # compute this once to save time:
@@ -77,7 +81,7 @@ score <- function(data, params, event, specific=NULL) {
   grad <- c(grad, rep(0, p))
   
   # gradient in the direction of gamma:
-  # cat(paste("Magnitude for log-likelihood:", sqrt(sum(rowSums(sweep(data - eta, 2, beta1, '*'), na.rm=TRUE)^2)), "Magnitude for lagrange:", sqrt(sum(gamma1.partial^2)), "\n"))
+  # cat(paste("Magnitude for log-likelihood:", sqrt(sum(sweep(data - eta, 2, beta1, '*'), na.rm=TRUE)^2), "Magnitude for lagrange:", sqrt(sum(gamma1.partial^2)), "\n"))
   grad <- c(grad, rowSums(sweep(data - eta, 2, beta1, '*'), na.rm=TRUE)+gamma1.partial-gamma1/sigma1)
   grad <- c(grad, rowSums(sweep(data - eta, 2, beta2, '*'), na.rm=TRUE)+gamma2.partial-gamma2/sigma2)
   
@@ -86,7 +90,7 @@ score <- function(data, params, event, specific=NULL) {
   grad <- c(grad, -n/2/sigma2 + sum(gamma2^2)/2/sigma2^2)
   
   # lambdas as well
-  grad <- c(grad, lambda.local)
+  grad <- c(grad, c(0,0,0))
   
   grad
 }

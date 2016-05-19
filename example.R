@@ -15,7 +15,7 @@ example <- function() {
   
   # Drop event 3, change mei[4] from "TNTC" to 0, and then convert all FIB to numerics:
   indx = which(dfOptAnalysisDataSSJan2015$Event != "03")
-  fib = dfOptAnalysisDataSSJan2015[indx, c("mei", "modmtec", "FC", "Bac.human", "Lachno.2")]
+  fib = dfOptAnalysisDataSSJan2015[, c("mei", "modmtec", "FC", "Bac.human", "Lachno.2")]
   fib$mei[4] = 0
   for (n in names(fib))
     fib[[n]] = as.numeric(fib[[n]])
@@ -27,7 +27,7 @@ example <- function() {
   specific = c(FALSE, FALSE, FALSE, TRUE, TRUE)
   
   # Get the event IDs
-  event = as.integer(dfOptAnalysisDataSSJan2015$Event[indx])
+  event = as.integer(dfOptAnalysisDataSSJan2015$Event)
   
   # Now estimate the model parameters:
   latent(fib, min.detect, event, specific)
