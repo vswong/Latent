@@ -64,7 +64,7 @@ E.step = function(alpha, beta, gamma, data, min.detect, event) {
           #then set the expectation to the censoring threshold.
           if (sum(exp(cens.log.lik))==0) {
             data[t,j] = min.detect[j]
-          } else data[t,j] = sum((0:min.detect[j]) * exp(cens.log.lik), na.rm=TRUE) / sum(exp(cens.log.lik), na.rm=TRUE)
+          } else data[t,j] = round(sum((0:min.detect[j]) * exp(cens.log.lik), na.rm=TRUE) / sum(exp(cens.log.lik), na.rm=TRUE))
         }
   
   return(data)

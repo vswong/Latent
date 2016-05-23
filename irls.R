@@ -24,15 +24,17 @@ irls <- function(data, params, event) {
   mu.local = exp(eta)
   
   z = eta - as.vector(alpha.local) + (as.vector(as.matrix(data))-mu.local)*1/mu.local
-  response = c(z, rep(0,n))
-  wt = c(mu.local, rep(1,n))
+  response = c(z, rep(0, n))
+  wt = c(mu.local, rep(1, n))
   
   
   designMat = rbind(diag(n)*beta[1],diag(n)*beta[2],diag(n)*beta[3],diag(n)*beta[4],diag(n)*beta[5],diag(n)*1/sqrt(2*sigma))
-
+  
+#   print.table(designMat)
+#   print.table(response)
+  
   pois = lsfit(designMat, response, wt=wt, intercept=FALSE)
   gamma.new = pois$coefficients
   
-  
   gamma.new
-}
+} 

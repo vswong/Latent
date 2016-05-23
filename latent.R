@@ -73,91 +73,139 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   d = length(unique(event))
   #alpha, beta, gamma, and sigma respectively
   #Mu is fixed at zero
-  # xx = c(5*rep(as.integer(!specific), length(unique(event))), rep(1, p), rep(0, n), 1)
-  xx = c(7.837, 2.667, 5.251, 0,0,8.002,3.77,7.25,0,0,7.609,3.208,6.314,0,0,1.316,3.612,2.574,5.519,5.227,1.905,1.888,1.934,1.749,2.001,2.048,2.015,1.781,0.972,1.055,1.751,1.726,1.657,1.453,1.639,1.009,1.114,0.954,1.013,0.782,0.597,1.2009,0.832,0.658,1.009,0.784,1.42,0.987,1.234,0.957,1.58,1.521,1.65,1.005,1.971,2.11,1.692,1.748,0.989)
+  xx = c(rep(as.integer(!specific), length(unique(event))), rep(1, p), rep(1, n), 1)
+  # xx = c(7.837, 2.667, 5.251, 0,0,8.002,3.77,7.25,0,0,7.609,3.208,6.314,0,0,1.316,3.612,2.574,5.519,5.227,1.905,1.888,1.934,1.749,2.001,2.048,2.015,1.781,0.972,1.055,1.751,1.726,1.657,1.453,1.639,1.009,1.114,0.954,1.013,0.782,0.597,1.2009,0.832,0.658,1.009,0.784,1.42,0.987,1.234,0.957,1.58,1.521,1.65,1.005,1.971,2.11,1.692,1.748,0.989)
   finished = FALSE
   
-  f.new = log.lik(data, xx, event)
-  f.old = -Inf
   tol = sqrt(.Machine$double.eps)
   tol = 1e-5
   check=Inf
   
   while (!finished) {
-    #These iterations restart conjugacy:
+    #Loop for M-step:
     converged = FALSE
+    f.mold = log.lik(data, xx, event)
+    f.mnew = f.mold
     while (!converged) {
       
-      #Prepare to iterate conjugate gradient descent/IRLS:
+      #Prepare to iterate conjugate gradient descent:
       i=0
-      f.outer = f.old
-      f.old = -Inf
-      t = 1
-      while(f.new>f.old && !converged && i<length(xx)) {
+      f.old = log.lik(data, xx, event)
+      converged.cg = FALSE
+      while(!converged.cg) {
         i = i+1
+        if(i == 1)
+          t = 1
+        else
+          t = t/0.9/0.9
         
-        dir.new = score(data, xx, event, specific=specific)
-        dir.new = dir.new / sqrt(sum(dir.new^2))
+        dir.new = score(data, xx, event, specific = specific)
         
-        #First iteration, ignore conjugacy - thereafter, use it.
-        #s.new is the vector of the new step (in parameter space)
-        if (i==1) {  
-          s.new = dir.new
+        dir.new = dir.new/sqrt(sum(dir.new^2))
+        
+        #Use conjugate gradient here
+        if (i > 1) {
+          cdir.old = cdir.old*max(0, sum(dir.new*(dir.new-dir.old))/(sum(dir.old^2)))
+          dir.old = dir.new
+          dir.new = dir.new + cdir.old
         } else {
-          conj = (sum(dir.new^2) + sum(dir.new * dir.old)) / sum(dir.old^2)
-          s.new = dir.new + conj * s.old
+          dir.old = dir.new
         }
+        cdir.old = dir.new
         
-        #Find the optimal step size
-        #Backtracking: stop when the loss function is majorized
-        condition = (log.lik(data, xx + t*s.new, event) < f.new + sum((t*s.new)*dir.new) + 1/(2*t)*sum((t*s.new)^2))[1]
+        newxx = xx + dir.new * t
         
-        while( condition ) {
-          condition = (log.lik(data, xx + t*s.new, event) < f.new + sum((t*s.new)*dir.new) + 1/(2*t)*sum((t*s.new)^2))[1]
-          
-          #This is the final stopping rule: t gets so small that 1/(2*t) is Inf
-          if (is.na(condition)) {
-            converged = TRUE
-            condition = FALSE
+        foundStep = FALSE
+        f.proposed = log.lik(data, newxx, event)
+        
+        #First make sure that we are at least improving
+        while(!foundStep && !converged.cg){
+          if(f.proposed > f.old)
+            foundStep = TRUE
+          else {
+            t <- t*0.9
+            if(t <= .Machine$double.eps){
+              #Step size too small, just take original parameters
+              converged.cg = TRUE
+              newxx = xx
+              cat(paste("Step size too small, converged, t = ", t, "\n")) 
+              # cat(paste("Old likelihood: ", f.old, "new likelihood: ", f.proposed, "\n"))
+            } else {
+              newxx <- xx + dir.new * t
+              f.proposed = log.lik(data, newxx, event)
+            }
           }
+        }
+        #Now we try to find the optimal step
+        foundStep = FALSE
+        f.best = f.proposed
+        while(!foundStep && !converged.cg){
+          t <- t * 0.9
+          if(t <= .Machine$double.eps){
+            converged.cg = TRUE
+            cat(paste("Step size too small, converged, t = ", t, "\n")) 
+          }
+          newxx <- xx + dir.new * t
           
-          t = 0.8*t
+          f.proposed <- log.lik(data, newxx, event)
+          
+          if(f.proposed > f.best){
+            f.best = f.proposed
+          }
+          else{
+            t <- t/0.9
+            newxx <- xx + dir.new * t
+            foundStep <- TRUE
+          }
         }
         
-        #Find the optimal step
-        step = s.new * t
+        xx = newxx
+        f.proposed = log.lik(data, xx, event)
         
-        #Make t a little bigger so next iteration has option to make larger step:
-        t = t / 0.8 / 0.8
-        p = xx + step
+        if(i%%100 == 0){
+          cat(paste(i," iterations of CG, log-likelihood: ", f.proposed, "\n"))
+          if(i%%1000 == 0)
+            print.table(xx)
+        }
         
-        #save for next iteration:
-        dir.old = dir.new
-        s.old = s.new
-        
-        
-        #Only save the new parameters if they've increased the likelihood
-        f.proposed = log.lik(data, p, event)
-        if (f.proposed > f.old)
-          xx = p
-        
-        #Do IRLS now
-        gamma = irls(data, xx, event)
-        xx[(ncol(data)*d+1+ncol(data)):(ncol(data)*d+ncol(data)+n)] = gamma
-        # print.table(xx)
-        
-        #Update values, the check occurs during each loop at the top
-        f.old = f.new
-        f.new = f.proposed
-        
+        if((f.proposed - f.old) < f.old * tol){
+          converged.cg = TRUE
+          cat(paste("CG Converged, log-likelihood: ", f.proposed, "\n"))
+          print.table(xx)
+        }
+        f.old = f.proposed
       }
       
+      converged.irls = FALSE
+      i = 0
+      while(!converged.irls){
+        #Do IRLS now
+        i = i+1
+        gammasigma = irls(data, xx, event)
+        newxx = xx
+        newxx[(p*d+p+1):(p*d+p+n)] = gammasigma
+        # print.table(xx)
+        
+        f.proposed = log.lik(data, newxx, event)
+        if(is.finite(f.proposed)){
+          if((f.proposed - f.old) <= 0){
+            converged.irls = TRUE
+          }
+        }
+        xx = newxx
+        
+        cat(paste("log-likelihood after ", i, " iterations of IRLS: ", f.proposed, "\n"))
+        f.old = f.proposed
+      }
       
-      
-      if (verbose) cat(paste("Likelihood objective: ", f.new, "\n", sep=""))
-      
-      
-      if ((f.new - f.outer) < tol * f.outer) converged = TRUE
+      f.mnew = f.proposed
+      if ((f.mnew - f.mold) < f.mold * tol){
+        converged = TRUE
+        cat("M-step complete \n")
+      }
+      cat(paste("log-likelihood change: ", f.mnew - f.mold, "\n"))
+      cat(paste("tolerance: ", f.mold * tol, "\n"))
+      f.mold = f.mnew
     }
     
     d = length(unique(event))
@@ -166,15 +214,15 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
     alpha = xx[1:(p*d)]
     beta = xx[(p*d+1):(p*d+p)]
     gamma = xx[(p*d+1+p):(p*d+p+n)]
-    mu = xx[(p*d+1+p+n):(p*d+p+n+d)]
-    sigma = xx[(p*d+p+n+d+1):(p*d+p+n+2*d)]
+    sigma = xx[p*d+p+n+1]
     data.new = E.step(alpha, beta, gamma, data, min.detect, event)
     
     check.old = check
     check = sum((data.new - data)^2, na.rm=TRUE) / sum(data^2, na.rm=TRUE)
     data = data.new
     
-    if (check.old - check < (abs(check.old) + tol)*tol) {
+    cat(paste("E-step check: ", abs(check.old-check), "compared to ", tol, "\n"))
+    if (abs(check.old - check) < tol) {
       if (tol<=sqrt(.Machine$double.eps))
         finished = TRUE
       tol = max(tol/2, sqrt(.Machine$double.eps))
@@ -192,7 +240,6 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   colnames(result$alpha) = names(result$beta)
   result$beta = beta
   result$gamma = gamma
-  result$mu = mu
   result$sigma = sigma
   
   return(result)
