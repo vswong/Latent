@@ -90,7 +90,7 @@ score <- function(data, params, event, specific=NULL) {
   grad <- c(grad, -n/2/sigma2 + sum(gamma2^2)/2/sigma2^2)
   
   # lambdas as well
-  grad <- c(grad, c(0,0,0))
+  grad <- c(grad, c(0,0,0,0))
   
   grad
 }

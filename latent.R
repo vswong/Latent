@@ -85,7 +85,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   #          1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
   #          1,1,1,1,1)
   cens <- sapply(1:p, function(k) ifelse(data[,k]<=min.detect[k], min.detect[k], data[,k]))
-  xx = c(rep(as.integer(!specific), d), rep(1, p), as.integer(!specific), rnorm(n, 0, 1), rnorm(n, 0, 1), 1, 1, rep(100, d))
+  xx = c(rep(as.integer(!specific), d), rep(1, p), as.integer(!specific), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), rep(1, n), 1, 1, rep(100, d))
   finished = FALSE
   
   f.old = -Inf
@@ -214,7 +214,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
         
         cat(paste(i, " iterations of IRLS, likelihood = ", log.lik(data, xx, event), "\n"))
         
-        if (sum((alphabeta.old - alphabeta.new)^2 / sum(alphabeta.old^2)) < tol)
+        if (isTRUE(all.equal(alphabeta.new, alphabeta.old, tol)))
           converged.irls <- TRUE
         else{
           alphabeta.old <- alphabeta.new
