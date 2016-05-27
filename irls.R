@@ -10,8 +10,6 @@ irls <- function(data, params, event, specific) {
   alpha <- params[1:(p * d)]
   beta <- params[(p * d + 1):(p * (2 + d))]
   gamma <- params[(p * (2 + d) + 1):(p * (2 + d) + 2 * n)]
-  sigma1 <- params[p * (2 + d) + 2 * n + 1]
-  sigma2 <- params[p * (2 + d) + 2 * n + 2]
   lambda <- tail(params, d)
   
   # read the separate elements of beta and gamma

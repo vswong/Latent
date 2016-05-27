@@ -85,7 +85,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   #          1.214,0.950,1.075,0.208,1.101,1.045,1.127,0.111,0.056,-0.052,1.377,1.854,0.787,1.004,1.651,1.309,1.396,1.070,1.072,0.998,0.980,1.963,1.280,1.067,1.243,1.117,1.164,1.497,1.838,1.187,2.248,2.214,1.905,1.209,1.385,0.858,0.641,0.595,
   #          1,1,1,1,1)
   cens <- sapply(1:p, function(k) ifelse(data[,k]<=min.detect[k], min.detect[k], data[,k]))
-  xx = c(rep(as.integer(!specific), d), rep(1, p), as.integer(!specific), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), rep(1, n), 1, 1, rep(100, d))
+  xx = c(rep(as.integer(!specific), d), rep(1, p), as.integer(!specific), rowMeans(sweep(log(cens), 2, log(colMeans(cens)), '-')), rnorm(n, 0, 1), rep(500, d))
   finished = FALSE
   
   f.old = -Inf
@@ -181,7 +181,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
         f.proposed = log.lik(data, xx, event)
         
         
-        if (i%%10 == 0) {
+        if (i%%100 == 0) {
           cat(paste(i, " iterations of CG, step size ", t, "likelihood at ", f.proposed , "\n"))
           if (i%%1000 == 0) {
             print.table(xx)
@@ -221,6 +221,7 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
         }
       }
       
+      xx[(p*(2+d) + 2*n + 1):(p*(2+d) + 2*n + d)] = xx[(p*(2+d) + 2*n + 1):(p*(2+d) + 2*n + d)]*1
       f.mnew = log.lik(data, xx, event)
       if(f.mnew - f.mold <  tol){
         cat("M-step converged\n")
@@ -233,8 +234,6 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
     alpha <- xx[1:(p * d)]
     beta <- xx[(p * d + 1):(p * (2 + d))]
     gamma <- xx[(p * (2 + d) + 1):(p * (2 + d) + 2 * n)]
-    sigma1 <- xx[p * (2 + d) + 2 * n + 1]
-    sigma2 <- xx[p * (2 + d) + 2 * n + 2]
     lambda <- tail(xx, d)
     
     data.new = E.step(alpha, beta, gamma, data, min.detect, event)
@@ -258,8 +257,6 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   alpha <- xx[1:(p * d)]
   beta <- xx[(p * d + 1):(p * (2 + d))]
   gamma <- xx[(p * (2 + d) + 1):(p * (2 + d) + 2 * n)]
-  sigma1 <- xx[p * (2 + d) + 2 * n + 1]
-  sigma2 <- xx[p * (2 + d) + 2 * n + 2]
   lambda <- tail(xx, d)
   beta1 <- beta[1:p]
   beta2 <- tail(beta, p)
@@ -275,10 +272,8 @@ latent <- function(data, min.detect, event, specific=NULL, verbose=TRUE) {
   colnames(result$alpha) = names(result$beta)
   result$beta1 = beta1
   result$gamma1 = gamma1
-  result$sigma1 = sigma1
   result$beta2 = beta2
   result$gamma2 = gamma2
-  result$sigma2 = sigma2
   result$lambda = lambda
   
   options(scipen=999)

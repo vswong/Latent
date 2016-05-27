@@ -36,8 +36,6 @@ score <- function(data, params, event, specific=NULL) {
   alpha <- params[1:(p * d)]
   beta <- params[(p * d + 1):(p * (2 + d))]
   gamma <- params[(p * (2 + d) + 1):(p * (2 + d) + 2 * n)]
-  sigma1 <- params[p * (2 + d) + 2 * n + 1]
-  sigma2 <- params[p * (2 + d) + 2 * n + 2]
   lambda <- tail(params, d)
 
   # read the separate elements of beta and gamma
@@ -82,12 +80,9 @@ score <- function(data, params, event, specific=NULL) {
   
   # gradient in the direction of gamma:
   # cat(paste("Magnitude for log-likelihood:", sqrt(sum(sweep(data - eta, 2, beta1, '*'), na.rm=TRUE)^2), "Magnitude for lagrange:", sqrt(sum(gamma1.partial^2)), "\n"))
-  grad <- c(grad, rowSums(sweep(data - eta, 2, beta1, '*'), na.rm=TRUE)+gamma1.partial-gamma1/sigma1)
-  grad <- c(grad, rowSums(sweep(data - eta, 2, beta2, '*'), na.rm=TRUE)+gamma2.partial-gamma2/sigma2)
+  grad <- c(grad, rowSums(sweep(data - eta, 2, beta1, '*'), na.rm=TRUE)+gamma1.partial)
+  grad <- c(grad, rowSums(sweep(data - eta, 2, beta2, '*'), na.rm=TRUE)+gamma2.partial)
   
-  # Victor, gradient in the direction of sigmas:
-  grad <- c(grad, -n/2/sigma1 + sum(gamma1^2)/2/sigma1^2)
-  grad <- c(grad, -n/2/sigma2 + sum(gamma2^2)/2/sigma2^2)
   
   # lambdas as well
   grad <- c(grad, c(0,0,0,0))
